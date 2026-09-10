@@ -27,19 +27,18 @@ following.
       Windows:        .\gradlew.bat run --console=plain
       macOS, Linux:   ./gradlew run --console=plain
 
-  Run the tests (59 of them)
-
-      Windows:        .\gradlew.bat test --console=plain
-      macOS, Linux:   ./gradlew test --console=plain
-
-  Compile and test in one step
+  Compile
 
       Windows:        .\gradlew.bat build
       macOS, Linux:   ./gradlew build
 
+  Test
+
+      Follow the table in TEST-PLAN.txt: type each input at the prompt
+      and compare what the program prints with the expected output.
+
 Nothing needs to be installed except a JDK 26.  The Gradle wrapper is
-committed to the repository and downloads Gradle and JUnit on the first
-build.
+committed to the repository and downloads Gradle on the first build.
 
 
 -----------------------------------------------------------------------
@@ -56,6 +55,9 @@ DOCUMENTATION
                         generate the Javadoc, the project layout, and
                         what to do if something goes wrong.
 
+  TEST-PLAN.txt         The test plan: a table of each test's input,
+                        expected output and actual output.
+
 
 -----------------------------------------------------------------------
 BUILT WITH
@@ -63,4 +65,3 @@ BUILT WITH
 
   Java 26
   Gradle 9.6, configured with the Kotlin DSL (build.gradle.kts)
-  JUnit 6 (Jupiter)

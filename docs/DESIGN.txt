@@ -112,11 +112,6 @@ Reading the arrows:
 
     1..*      multiplicity - one Sonnet holds many Words
 
-The tests supply a second implementation of WordSelector, called
-ScriptedWordSelector.  It is left out of this diagram to keep the
-picture to the shipped program; it appears in section 4 alongside
-RandomWordSelector.
-
 Notice which arrows are missing.  Nothing points back up: PritheeGame
 has no idea a console exists, and Sonnet has no idea a game exists.
 That is what makes the lower classes testable on their own.
@@ -244,8 +239,8 @@ Word
   +------------------------------------------------------------+
 
 
-WordSelector and its implementations
-------------------------------------
+WordSelector and RandomWordSelector
+-----------------------------------
 
   +---------------------------------------------+   +---------------------------------------------+
   |                <<interface>>                |   |             RandomWordSelector              |
@@ -261,10 +256,8 @@ WordSelector and its implementations
                             WordSelector
                                  ^
                                  | implements
-                 +---------------+----------------+
-                 |                                |
-          RandomWordSelector             ScriptedWordSelector
-          (src/main, the real game)      (src/test, a known sequence)
+                                 |
+                         RandomWordSelector
 
 
 
@@ -317,42 +310,6 @@ GameStatus
   +--------------------------------------------------+
 
 
-ScriptedWordSelector   (test source)
-------------------------------------
-
-  +-----------------------------------------------------------+
-  |                      <<test double>>                      |
-  |                   ScriptedWordSelector                    |
-  +-----------------------------------------------------------+
-  | - indexes : int[]                                 {final} |
-  | - exclusionsSeen : List<Set<Integer>>             {final} |
-  | - callCount : int                                         |
-  +-----------------------------------------------------------+
-  | ~ ScriptedWordSelector(indexes : int...)                  |
-  | + selectIndex(wordCount : int,                            |
-  |               exclude : Set<Integer>) : int               |
-  | ~ callCount() : int                                       |
-  | ~ exclusionsSeen() : List<Set<Integer>>                   |
-  +-----------------------------------------------------------+
-
-
-Test classes
-------------
-
-  +----------------+   +------------------+   +--------------------------+
-  | <<tests Word>> |   | <<tests Sonnet>> |   | <<tests GuessEvaluator>> |
-  |    WordTest    |   |    SonnetTest    |   |    GuessEvaluatorTest    |
-  +----------------+   +------------------+   +--------------------------+
-
-  +-----------------------+   +------------------------------+   +-----------------------+
-  | <<tests PritheeGame>> |   | <<tests RandomWordSelector>> |   | <<tests ConsoleGame>> |
-  |    PritheeGameTest    |   |    RandomWordSelectorTest    |   |    ConsoleGameTest    |
-  +-----------------------+   +------------------------------+   +-----------------------+
-
-  Test methods are left out of these boxes; there are 59 of them, and the
-  table in section 8 says what each class covers.  PritheeGameTest and
-  ConsoleGameTest both use ScriptedWordSelector.
-
 =======================================================================
 5. WHAT EACH CLASS IS RESPONSIBLE FOR
 =======================================================================
@@ -367,8 +324,8 @@ ConsoleGame
     All input and output.  Prints the welcome, the blanked poem, the
     CORRECT or ERROR line, and the closing summary; reads a line from
     the user.  Its Scanner and PrintStream are constructor arguments,
-    which is how ConsoleGameTest plays whole games over strings.  It
-    also handles the quit command, blank input, and end of input.
+    so a whole game can be driven from strings instead of a keyboard.
+    It also handles the quit command, blank input, and end of input.
 
 PritheeGame
     The rules.  Starts a round by asking the selector for a word that
@@ -416,10 +373,6 @@ GuessResult
     A record carrying the outcome of one guess: whether it was correct,
     what was typed, what was expected, and the game's status afterwards.
 
-ScriptedWordSelector  (test source only)
-    A WordSelector that returns a fixed sequence of word indexes, and
-    records the exclusion set it was handed on each call.  This is what
-    lets a test assert that a game never hides the same word twice.
 
 
 =======================================================================
@@ -505,66 +458,34 @@ The game can run past three rounds.
 
 Quitting and end-of-input are handled.
     Typing quit, or closing the input stream, ends the game politely
-    rather than throwing.  A blank line is not scored as a wrong
-    answer; the program simply asks again.
+    rather than throwing.  A blank line, or a line holding no letters
+    or digits, is not scored as a wrong answer; the program simply asks
+    again.
 
 
 =======================================================================
 8. TESTING STRATEGY
 =======================================================================
 
-The tests live in src/test/java/edu/virginia/cs/prithee and use
-JUnit 6 (Jupiter), supplied by Gradle.  There are 59 tests in six test
-classes, plus one test-only helper class.
+Testing this week is manual, through the console.  TEST-PLAN.txt
+lists each test: what to type, what the program should print, and what
+it actually printed.  The tests were chosen with two techniques:
 
-  Test class                What it pins down
-  ------------------------  -------------------------------------------
-  WordTest                  Punctuation stripping and blank rendering.
+  Equivalence partitioning
+      Inputs are grouped into classes the program should treat alike -
+      the right word in any case, a wrong word, a line with no word in
+      it at all - and one or two inputs are tried from each class.
 
-  SonnetTest                Word indexing, the poem rendered up to a
-                            blank, the indentation of the closing
-                            couplet, and that nothing after the blank
-                            ever leaks into the output.
+  Robustness testing
+      Inputs a normal player would not type - an empty line, only
+      punctuation, a 500-character line, format strings, the end of
+      input - are tried to check the program neither crashes nor
+      miscounts.
 
-  GuessEvaluatorTest        Case, whitespace, punctuation, dropped
-                            apostrophes and nulls.  Uses
-                            @ParameterizedTest with @ValueSource and
-                            @CsvSource.
+JUnit tests are not part of this week's assignment.  The design is
+ready for them when they are: goals (1) and (2) in section 2 mean
+ConsoleGame can be driven from strings instead of a keyboard, and
+PritheeGame can be handed a WordSelector that hides known words
+instead of random ones.
 
-  PritheeGameTest           The rules: win at three correct, lose at
-                            three missed, keep playing while the tallies
-                            are split, never repeat a word, refuse a
-                            guess when no round is in progress, refuse a
-                            round once the game is over.
-
-  RandomWordSelectorTest    Choices stay in range, never repeat an
-                            excluded word, vary across calls, are
-                            repeatable when seeded, and throw when every
-                            word has been used.
-
-  ConsoleGameTest           A whole game played over strings: the
-                            transcript reports CORRECT and ERROR, the
-                            sonnet restarts at a different word each
-                            round, and blank input, quit and end of
-                            input are all handled.
-
-  ScriptedWordSelector      Not a test - a test double.  Returns a fixed
-  (helper)                  sequence of word indexes and records the
-                            exclusion sets it was given, which is how
-                            the "never repeats a word" test is written.
-
-Why the tests can exist at all is the point of goals (1) and (2) in
-section 2.  ConsoleGame takes its streams as arguments, so a test can
-hand it a Scanner over a string and a PrintStream over a byte array and
-read the whole transcript back.  PritheeGame takes a WordSelector, so a
-test can hand it ScriptedWordSelector and know exactly which words will
-be hidden.  Neither class needed a special "test mode"; the seams were
-there in the design.
-
-To run them:
-
-    gradlew.bat test --console=plain        (Windows)
-    ./gradlew test --console=plain          (macOS, Linux)
-
-The HTML report lands in build/reports/tests/test/index.html.
 See HOW-TO-RUN.txt for everything else.

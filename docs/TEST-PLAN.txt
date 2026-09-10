@@ -1,0 +1,41 @@
+PRITHEE - TEST PLAN
+
+Hidden word is 'compare' unless another is shown in brackets.
+C = a correct answer, X = a wrong answer.  Quotes mark spaces.
+
+#   Test                        Input            Expected Output        Actual Output
+--  --------------------------  ---------------  ---------------------  ---------------------
+
+Valid Partition
+1   testExactMatch              compare          CORRECT                CORRECT
+2   testUppercase               COMPARE          CORRECT                CORRECT
+3   testMixedCase               CoMpArE          CORRECT                CORRECT
+4   testSurroundingSpaces       '   compare   '  CORRECT                CORRECT
+5   testPunctuationTyped        compare!         CORRECT                CORRECT
+6   testApostropheOmitted       owst  (ow'st)    CORRECT                CORRECT
+
+Negative Partition
+7   testWrongWord               contrast         ERROR                  ERROR
+8   testNearMiss                compar           ERROR                  ERROR
+9   testTwoWords                compare thee     ERROR                  ERROR
+10  testNumberOnly              18               ERROR                  ERROR
+11  testDigitAttached           compare1         ERROR                  ERROR
+12  testMisplacedApostrophe     o'wst  (ow'st)   ERROR                  ERROR
+
+Robustness / Unexpected Input
+13  testEmptyLine               (just Enter)     Asks again, no score   Asks again, no score
+14  testSpacesOnly              '     '          Asks again, no score   Asks again, no score
+15  testPunctuationOnly         ?!.              Asks again, no score   Asks again, no score
+16  testQuitAnyCase             quit / QUIT      Farewell, exits        Farewell, exits
+17  testEndOfInput              Ctrl+Z / Ctrl+D  Farewell, exits        Farewell, exits
+18  testVeryLongInput           aaa...a (500)    ERROR, no crash        ERROR, no crash
+19  testFormatString            %s %d %n         ERROR, shown as typed  ERROR, shown as typed
+
+Game Flow
+20  testThreeCorrectInARow      C C C            Win after round 3      Win, tally 3-0
+21  testThreeIncorrectInARow    X X X            Loss after round 3     Loss, tally 0-3
+22  testTwoCorrectKeepsPlaying  C C              Round 3 is shown       Round 3 is shown
+23  testAlternatingToRoundFive  C X C X C        Win after round 5      Win, tally 3-2
+24  testBlankStopsThePoem       (watch prompt)   Shall I _______        Shall I _______
+
+All 24 tests: actual output matches expected.

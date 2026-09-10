@@ -8,7 +8,7 @@ Contents
   1. What you need
   2. Running the game
   3. Playing
-  4. Running the tests
+  4. Testing
   5. Generating the API documentation
   6. Project layout
   7. If something goes wrong
@@ -27,9 +27,8 @@ Contents
   Nothing else
       The Gradle wrapper (gradlew and gradlew.bat) is committed to the
       repository, so Gradle itself does not need to be installed.  The
-      wrapper downloads Gradle 9.6 the first time it runs, and Gradle
-      downloads JUnit.  Both need an internet connection on the first
-      build only.
+      wrapper downloads Gradle 9.6 the first time it runs, which needs
+      an internet connection on the first build only.
 
 To check the Java version on the machine:
 
@@ -99,7 +98,8 @@ The sonnet prints and stops at a blank:
     in which you keep alternating right and wrong answers runs past
     three rounds; the fifth round settles it.
 
-  - A blank line is not counted against you.  The program just asks
+  - A blank line is not counted against you, and neither is a line
+    with no letters or digits in it, such as ?!.  The program just asks
     again.
 
   - Type quit at any prompt to leave.  Closing the input stream also
@@ -111,23 +111,17 @@ sonnet in full.
 
 
 =======================================================================
-4. RUNNING THE TESTS
+4. TESTING
 =======================================================================
 
-    .\gradlew.bat test --console=plain        (Windows)
-    ./gradlew test --console=plain            (macOS, Linux)
+Testing is manual this week.  TEST-PLAN.txt, in this docs folder, is a
+table of tests: for each one, what to type at the prompt, what the
+program should print, and what it actually printed.
 
-There are 59 tests across six test classes.  The build prints each one
-as it passes, and writes an HTML report to:
-
-    build/reports/tests/test/index.html
-
-To compile the program and run the tests in one step:
-
-    .\gradlew.bat build
-
-DESIGN.txt, section 8, says what each test class covers and why the
-design made the tests possible.
+To run a test, start the game (section 2) and type the input from the
+table.  The hidden word is chosen at random, so apply the test's input
+to whatever word is hidden: for testUppercase, type the hidden word in
+capitals; for testDigitAttached, type it followed by a 1.
 
 
 =======================================================================
@@ -147,8 +141,8 @@ warnings.
 =======================================================================
 
   Homework2/
-    build.gradle.kts        Gradle build, Kotlin DSL: Java 26, JUnit 6,
-                            the application plugin, UTF-8 encoding
+    build.gradle.kts        Gradle build, Kotlin DSL: Java 26, the
+                            application plugin, UTF-8 encoding
     settings.gradle.kts     project name
     gradlew, gradlew.bat    Gradle wrapper - no local Gradle needed
     gradle/wrapper/         the wrapper jar and its properties
@@ -159,6 +153,8 @@ warnings.
                             responsibilities, how a round flows, the
                             decisions behind it, testing strategy
       HOW-TO-RUN.txt        this document
+      TEST-PLAN.txt         table of tests: input, expected output,
+                            actual output
 
     src/main/java/edu/virginia/cs/prithee/
       Main.java                  entry point
@@ -172,15 +168,6 @@ warnings.
       GameStatus.java            IN_PROGRESS, WON, LOST
       Round.java                 a hidden word plus the text to print
       GuessResult.java           the outcome of one guess
-
-    src/test/java/edu/virginia/cs/prithee/
-      WordTest.java
-      SonnetTest.java
-      GuessEvaluatorTest.java
-      PritheeGameTest.java
-      RandomWordSelectorTest.java
-      ConsoleGameTest.java
-      ScriptedWordSelector.java  test double: a known sequence of words
 
 
 =======================================================================
@@ -206,5 +193,5 @@ warnings.
 
   The first build is slow
 
-      The wrapper is downloading Gradle, and Gradle is downloading
-      JUnit.  Later builds use the cache and take a few seconds.
+      The wrapper is downloading Gradle.  Later builds use the cache
+      and take a few seconds.
