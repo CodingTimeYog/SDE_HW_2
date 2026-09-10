@@ -1,0 +1,570 @@
+=======================================================================
+PRITHEE - DESIGN DOCUMENT
+Homework 2, SDE, University of Virginia
+=======================================================================
+
+Contents
+
+  1. The problem
+  2. Design goals
+  3. How the classes fit together
+  4. UML class diagrams
+  5. What each class is responsible for
+  6. How a round flows
+  7. Design decisions worth naming
+  8. Testing strategy
+
+
+=======================================================================
+1. THE PROBLEM
+=======================================================================
+
+At the Blackfriars Playhouse in Staunton, preview audiences see a play
+before it opens.  When an actor forgets a line during one of these
+previews, they call out "Prithee" and a fellow player waiting in the
+wings with the script reads out the next words.
+
+This program puts the user in the wings.  It prints Shakespeare's
+Sonnet 18, stops at a randomly chosen word, and prints a run of
+underscores in its place.  Nothing after the blank is shown.  The user
+types the missing word; the program answers CORRECT or ERROR, then
+restarts the sonnet and stops at a different word.  Play continues
+until the user has supplied three words correctly (a win) or missed
+three (a loss).  The whole program runs in the console.
+
+
+=======================================================================
+2. DESIGN GOALS
+=======================================================================
+
+(1) The rules should be testable without a keyboard.
+
+    Code that reads from System.in and writes to System.out cannot be
+    exercised by an automated test unless those streams can be replaced.
+    So the rules of the game live in classes that never touch the
+    console, and the single class that does console work takes its
+    streams as constructor arguments.
+
+(2) Randomness should be replaceable.
+
+    A test can assert very little about a game whose words are chosen at
+    random.  Word choice is therefore hidden behind an interface, so the
+    real game gets randomness and a test gets a known sequence.
+
+(3) The poem should be data, not control flow.
+
+    The sonnet is a list of lines.  Nothing in the game logic knows that
+    it is Sonnet 18, or that it has fourteen lines, so the same program
+    would work over any poem handed to it.
+
+
+=======================================================================
+3. HOW THE CLASSES FIT TOGETHER
+=======================================================================
+
+                              +------+
+                              | Main |
+                              +------+
+                                  |
+                                  | creates and starts
+                                  v
+                         +-------------+
+   keyboard, screen <--->| ConsoleGame |
+                         +-------------+
+                                |
+                                | nextRound(), submitGuess()
+                                v
+                         +-------------+
+                         | PritheeGame |
+                         +-------------+
+                                |
+        +-----------------------+----------------------------+
+        |                       |                            |
+        | asks for the text     | scores the guess           | asks which word
+        |                       |                            | comes next
+        v                       v                            v
+   +--------+          +----------------+            +---------------+
+   | Sonnet |          | GuessEvaluator |            | <<interface>> |
+   +--------+          +----------------+            | WordSelector  |
+        |                                            +---------------+
+        | 1..*  contains                                     ^
+        v                                                    | implements
+    +------+                                                 |
+    | Word |                                      +--------------------+
+    +------+                                      | RandomWordSelector |
+                                                  +--------------------+
+
+Three small types carry values back up through those calls:
+
+    PritheeGame.nextRound()    returns  Round        a hidden Word plus the
+                                                     text to print
+    PritheeGame.submitGuess()  returns  GuessResult  correct?, what was typed,
+                                                     what was expected, status
+    PritheeGame.status()       returns  GameStatus   IN_PROGRESS, WON or LOST
+
+Reading the arrows:
+
+    ---->     uses / calls / depends on
+
+      ^
+      |       implements; the arrowhead points at the interface
+              being implemented
+
+    1..*      multiplicity - one Sonnet holds many Words
+
+The tests supply a second implementation of WordSelector, called
+ScriptedWordSelector.  It is left out of this diagram to keep the
+picture to the shipped program; it appears in section 4 alongside
+RandomWordSelector.
+
+Notice which arrows are missing.  Nothing points back up: PritheeGame
+has no idea a console exists, and Sonnet has no idea a game exists.
+That is what makes the lower classes testable on their own.
+
+
+=======================================================================
+4. UML CLASS DIAGRAMS
+=======================================================================
+
+Notation used in the boxes below:
+
+    +   public          -   private          ~   package-private
+    name : Type         a field or a parameter and its type
+    method(...) : Type  an operation and what it returns
+    {static}            belongs to the class, not to an instance
+    {final}             assigned once, never reassigned
+    {generated}         a record accessor the compiler writes for us
+    <<...>>             a stereotype: interface, enum, record, and so on
+
+Main
+----
+
+  +------------------------------------------------------------+
+  |                            Main                            |
+  +------------------------------------------------------------+
+  | - Main()                                                   |
+  | + main(args : String[]) : void                    {static} |
+  +------------------------------------------------------------+
+
+
+ConsoleGame
+-----------
+
+  +------------------------------------------------------------+
+  |                        ConsoleGame                         |
+  +------------------------------------------------------------+
+  | - QUIT_COMMAND : String = "quit"           {static, final} |
+  | - game : PritheeGame                              {final}  |
+  | - input : Scanner                                 {final}  |
+  | - output : PrintStream                            {final}  |
+  +------------------------------------------------------------+
+  | + ConsoleGame(game : PritheeGame, input : Scanner,         |
+  |               output : PrintStream)                        |
+  | + run() : void                                             |
+  | - printWelcome() : void                                    |
+  | - printRound(round : Round) : void                         |
+  | - readGuess() : Optional<String>                           |
+  | - printResult(result : GuessResult) : void                 |
+  | - printFarewell() : void                                   |
+  +------------------------------------------------------------+
+
+
+PritheeGame
+-----------
+
+  +------------------------------------------------------------+
+  |                        PritheeGame                         |
+  +------------------------------------------------------------+
+  | + ROUNDS_TO_WIN : int = 3                  {static, final} |
+  | + ROUNDS_TO_LOSE : int = 3                 {static, final} |
+  | - sonnet : Sonnet                                 {final}  |
+  | - wordSelector : WordSelector                     {final}  |
+  | - usedWordIndexes : Set<Integer>                  {final}  |
+  | - correctCount : int                                       |
+  | - incorrectCount : int                                     |
+  | - currentWord : Word                                       |
+  +------------------------------------------------------------+
+  | + PritheeGame(sonnet : Sonnet,                             |
+  |               wordSelector : WordSelector)                 |
+  | + nextRound() : Round                                      |
+  | + submitGuess(guess : String) : GuessResult                |
+  | + status() : GameStatus                                    |
+  | + isOver() : boolean                                       |
+  | + correctCount() : int                                     |
+  | + incorrectCount() : int                                   |
+  | + roundsPlayed() : int                                     |
+  | + sonnet() : Sonnet                                        |
+  +------------------------------------------------------------+
+
+
+Sonnet
+------
+
+  +------------------------------------------------------------+
+  |                      <<final class>>                       |
+  |                           Sonnet                           |
+  +------------------------------------------------------------+
+  | - lines : List<String>                            {final}  |
+  | - words : List<Word>                              {final}  |
+  +------------------------------------------------------------+
+  | + Sonnet(lines : List<String>)                             |
+  | + shallICompareThee() : Sonnet                    {static} |
+  | + lines() : List<String>                                   |
+  | + words() : List<Word>                                     |
+  | + wordCount() : int                                        |
+  | + word(index : int) : Word                                 |
+  | + fullText() : String                                      |
+  | + textUpToBlank(blankIndex : int) : String                 |
+  | - indexWords(lines : List<String>) : List<Word>   {static} |
+  | - tokensOf(line : String) : List<String>          {static} |
+  | - indentOf(line : String) : String                {static} |
+  +------------------------------------------------------------+
+
+
+Word
+----
+
+  +------------------------------------------------------------+
+  |                         <<record>>                         |
+  |                            Word                            |
+  +------------------------------------------------------------+
+  | + index : int                                              |
+  | + lineNumber : int                                         |
+  | + positionInLine : int                                     |
+  | + raw : String                                             |
+  +------------------------------------------------------------+
+  | + Word(index : int, lineNumber : int,                      |
+  |        positionInLine : int, raw : String)                 |
+  | + answer() : String                                        |
+  | + blank() : String                                         |
+  | + index() : int                                {generated} |
+  | + lineNumber() : int                           {generated} |
+  | + positionInLine() : int                       {generated} |
+  | + raw() : String                               {generated} |
+  +------------------------------------------------------------+
+
+
+WordSelector and its implementations
+------------------------------------
+
+  +---------------------------------------------+   +---------------------------------------------+
+  |                <<interface>>                |   |             RandomWordSelector              |
+  |                WordSelector                 |   +---------------------------------------------+
+  +---------------------------------------------+   | - random : Random                  {final}  |
+  | + selectIndex(wordCount : int,              |   +---------------------------------------------+
+  |               exclude : Set<Integer>) : int |   | + RandomWordSelector()                      |
+  +---------------------------------------------+   | + RandomWordSelector(random : Random)       |
+                                                    | + selectIndex(wordCount : int,              |
+                                                    |               exclude : Set<Integer>) : int |
+                                                    +---------------------------------------------+
+
+                            WordSelector
+                                 ^
+                                 | implements
+                 +---------------+----------------+
+                 |                                |
+          RandomWordSelector             ScriptedWordSelector
+          (src/main, the real game)      (src/test, a known sequence)
+
+
+
+GuessEvaluator
+--------------
+
+  +------------------------------------------------------------+
+  |                  <<final class, utility>>                  |
+  |                       GuessEvaluator                       |
+  +------------------------------------------------------------+
+  | - GuessEvaluator()                                         |
+  | + normalize(word : String) : String               {static} |
+  | + matches(guess : String,                                  |
+  |           expected : String) : boolean            {static} |
+  | - withoutApostrophes(word : String) : String      {static} |
+  +------------------------------------------------------------+
+
+
+Round and GuessResult
+---------------------
+
+  +----------------------------------------+   +-------------------------------------------------------+
+  |               <<record>>               |   |                      <<record>>                       |
+  |                 Round                  |   |                      GuessResult                      |
+  +----------------------------------------+   +-------------------------------------------------------+
+  | + hiddenWord : Word                    |   | + correct : boolean                                   |
+  | + prompt : String                      |   | + guess : String                                      |
+  +----------------------------------------+   | + expected : String                                   |
+  | + Round(hiddenWord : Word,             |   | + status : GameStatus                                 |
+  |         prompt : String)               |   +-------------------------------------------------------+
+  | + hiddenWord() : Word      {generated} |   | + GuessResult(correct : boolean, guess : String,      |
+  | + prompt() : String        {generated} |   |               expected : String, status : GameStatus) |
+  +----------------------------------------+   | + correct() : boolean                    {generated}  |
+                                               | + guess() : String                       {generated}  |
+                                               | + expected() : String                    {generated}  |
+                                               | + status() : GameStatus                  {generated}  |
+                                               +-------------------------------------------------------+
+
+
+GameStatus
+----------
+
+  +--------------------------------------------------+
+  |                     <<enum>>                     |
+  |                    GameStatus                    |
+  +--------------------------------------------------+
+  | + IN_PROGRESS    neither tally has reached three |
+  | + WON            three words supplied correctly  |
+  | + LOST           three words missed              |
+  +--------------------------------------------------+
+
+
+ScriptedWordSelector   (test source)
+------------------------------------
+
+  +-----------------------------------------------------------+
+  |                      <<test double>>                      |
+  |                   ScriptedWordSelector                    |
+  +-----------------------------------------------------------+
+  | - indexes : int[]                                 {final} |
+  | - exclusionsSeen : List<Set<Integer>>             {final} |
+  | - callCount : int                                         |
+  +-----------------------------------------------------------+
+  | ~ ScriptedWordSelector(indexes : int...)                  |
+  | + selectIndex(wordCount : int,                            |
+  |               exclude : Set<Integer>) : int               |
+  | ~ callCount() : int                                       |
+  | ~ exclusionsSeen() : List<Set<Integer>>                   |
+  +-----------------------------------------------------------+
+
+
+Test classes
+------------
+
+  +----------------+   +------------------+   +--------------------------+
+  | <<tests Word>> |   | <<tests Sonnet>> |   | <<tests GuessEvaluator>> |
+  |    WordTest    |   |    SonnetTest    |   |    GuessEvaluatorTest    |
+  +----------------+   +------------------+   +--------------------------+
+
+  +-----------------------+   +------------------------------+   +-----------------------+
+  | <<tests PritheeGame>> |   | <<tests RandomWordSelector>> |   | <<tests ConsoleGame>> |
+  |    PritheeGameTest    |   |    RandomWordSelectorTest    |   |    ConsoleGameTest    |
+  +-----------------------+   +------------------------------+   +-----------------------+
+
+  Test methods are left out of these boxes; there are 59 of them, and the
+  table in section 8 says what each class covers.  PritheeGameTest and
+  ConsoleGameTest both use ScriptedWordSelector.
+
+=======================================================================
+5. WHAT EACH CLASS IS RESPONSIBLE FOR
+=======================================================================
+
+Main
+    Entry point.  Creates the sonnet, a RandomWordSelector, a
+    PritheeGame and a ConsoleGame, then calls run().  It holds no state
+    of its own and its constructor is private, since it is never meant
+    to be instantiated.
+
+ConsoleGame
+    All input and output.  Prints the welcome, the blanked poem, the
+    CORRECT or ERROR line, and the closing summary; reads a line from
+    the user.  Its Scanner and PrintStream are constructor arguments,
+    which is how ConsoleGameTest plays whole games over strings.  It
+    also handles the quit command, blank input, and end of input.
+
+PritheeGame
+    The rules.  Starts a round by asking the selector for a word that
+    has not been used, scores a guess, keeps the two tallies, and
+    decides whether the game is won, lost or still going.  It knows
+    nothing about the console.
+
+Sonnet
+    The poem.  Holds the lines, indexes every word on construction, and
+    can render "the poem up to word n, with word n blanked out and
+    nothing after it".  Immutable: the lists it hands back cannot be
+    modified.
+
+Word
+    A record holding one word's text along with its index in the poem,
+    its line number, and its position on that line.  It knows how to
+    strip its own punctuation (day? becomes day) and how to render
+    itself as a run of underscores.
+
+WordSelector
+    An interface with one method: given the size of the poem and the
+    set of words already used, pick the next word to hide.
+
+RandomWordSelector
+    The implementation the real game uses.  Picks uniformly at random
+    from the words not yet used, and throws if none are left.  It
+    accepts a Random so a test can seed it and get a repeatable
+    sequence.
+
+GuessEvaluator
+    Compares a guess to the hidden word, ignoring case, surrounding
+    punctuation, surrounding whitespace, and a dropped apostrophe.  A
+    utility class: no state, a private constructor, static methods.
+
+GameStatus
+    An enum with three values: IN_PROGRESS, WON, LOST.  Using an enum
+    rather than a pair of booleans means an impossible state (won and
+    lost at once) cannot be represented.
+
+Round
+    A record carrying what a round needs: the hidden Word and the text
+    to show the user.
+
+GuessResult
+    A record carrying the outcome of one guess: whether it was correct,
+    what was typed, what was expected, and the game's status afterwards.
+
+ScriptedWordSelector  (test source only)
+    A WordSelector that returns a fixed sequence of word indexes, and
+    records the exclusion set it was handed on each call.  This is what
+    lets a test assert that a game never hides the same word twice.
+
+
+=======================================================================
+6. HOW A ROUND FLOWS
+=======================================================================
+
+  User          ConsoleGame       PritheeGame     WordSelector      Sonnet
+   |                 |                 |                |              |
+   |                 |   nextRound()   |                |              |
+   |                 |---------------->|                |              |
+   |                 |                 | selectIndex()  |              |
+   |                 |                 |--------------->|              |
+   |                 |                 |<---------------|              |
+   |                 |                 |     index      |              |
+   |                 |                 |  textUpToBlank(index)         |
+   |                 |                 |------------------------------>|
+   |                 |                 |<------------------------------|
+   |                 |                 |          blanked text         |
+   |                 |<----------------|                |              |
+   |                 |      Round      |                |              |
+   |<----------------|                 |                |              |
+   |  poem + blank   |                 |                |              |
+   |                 |                 |                |              |
+   |---------------->|                 |                |              |
+   |    the word     | submitGuess(w)  |                |              |
+   |                 |---------------->|                |              |
+   |                 |                 | (asks GuessEvaluator.matches) |
+   |                 |<----------------|                |              |
+   |                 |   GuessResult   |                |              |
+   |<----------------|                 |                |              |
+   | CORRECT / ERROR |                 |                |              |
+   |                 |                 |                |              |
+   |                 |  loops until PritheeGame.isOver()               |
+
+In words:
+
+  1. ConsoleGame.run() asks PritheeGame.nextRound().
+  2. PritheeGame asks its WordSelector for an index that is not in the
+     used set, records that index so the same word is never hidden
+     twice, and asks Sonnet.textUpToBlank(index) for the text to show.
+  3. ConsoleGame prints that text and reads a line from the user.
+  4. PritheeGame.submitGuess() hands the line to GuessEvaluator, bumps
+     the correct or incorrect tally, and returns a GuessResult.
+  5. ConsoleGame prints CORRECT or ERROR, and loops while
+     PritheeGame.isOver() is false.
+  6. At the end, ConsoleGame prints the final tally and the sonnet in
+     full.
+
+
+=======================================================================
+7. DESIGN DECISIONS WORTH NAMING
+=======================================================================
+
+Words are indexed once, at construction.
+    Sonnet flattens its lines into a list of Words when it is built,
+    each one remembering its line and its position on that line.  That
+    single integer index is how the rest of the program refers to "the
+    word we are hiding", which keeps the selector, the game and the
+    renderer from having to agree on anything more complicated than an
+    int.
+
+The blank is as long as the word.
+    A four-letter word shows as ____ .  The length is a fair hint for
+    someone standing in the wings with a script.  Punctuation is left
+    out of the blank so it does not give away whether the line ends
+    there.
+
+Punctuation is not part of the answer.
+    The user answers "day", not "day?".  An apostrophe inside a word
+    (ow'st, untrimm'd) is part of the word, but the comparison also
+    accepts the word with the apostrophe left out, since it is being
+    typed in a hurry mid-performance.
+
+A word is never hidden twice.
+    PritheeGame passes the set of used indexes to the selector, and
+    rejects a selector that hands back one of them anyway.  Without
+    this, a user could see the same blank three rounds running.
+
+The game can run past three rounds.
+    Three correct or three incorrect ends it, so someone who alternates
+    right and wrong answers plays a fifth round.  This is deliberate,
+    and it is tested.
+
+Quitting and end-of-input are handled.
+    Typing quit, or closing the input stream, ends the game politely
+    rather than throwing.  A blank line is not scored as a wrong
+    answer; the program simply asks again.
+
+
+=======================================================================
+8. TESTING STRATEGY
+=======================================================================
+
+The tests live in src/test/java/edu/virginia/cs/prithee and use
+JUnit 6 (Jupiter), supplied by Gradle.  There are 59 tests in six test
+classes, plus one test-only helper class.
+
+  Test class                What it pins down
+  ------------------------  -------------------------------------------
+  WordTest                  Punctuation stripping and blank rendering.
+
+  SonnetTest                Word indexing, the poem rendered up to a
+                            blank, the indentation of the closing
+                            couplet, and that nothing after the blank
+                            ever leaks into the output.
+
+  GuessEvaluatorTest        Case, whitespace, punctuation, dropped
+                            apostrophes and nulls.  Uses
+                            @ParameterizedTest with @ValueSource and
+                            @CsvSource.
+
+  PritheeGameTest           The rules: win at three correct, lose at
+                            three missed, keep playing while the tallies
+                            are split, never repeat a word, refuse a
+                            guess when no round is in progress, refuse a
+                            round once the game is over.
+
+  RandomWordSelectorTest    Choices stay in range, never repeat an
+                            excluded word, vary across calls, are
+                            repeatable when seeded, and throw when every
+                            word has been used.
+
+  ConsoleGameTest           A whole game played over strings: the
+                            transcript reports CORRECT and ERROR, the
+                            sonnet restarts at a different word each
+                            round, and blank input, quit and end of
+                            input are all handled.
+
+  ScriptedWordSelector      Not a test - a test double.  Returns a fixed
+  (helper)                  sequence of word indexes and records the
+                            exclusion sets it was given, which is how
+                            the "never repeats a word" test is written.
+
+Why the tests can exist at all is the point of goals (1) and (2) in
+section 2.  ConsoleGame takes its streams as arguments, so a test can
+hand it a Scanner over a string and a PrintStream over a byte array and
+read the whole transcript back.  PritheeGame takes a WordSelector, so a
+test can hand it ScriptedWordSelector and know exactly which words will
+be hidden.  Neither class needed a special "test mode"; the seams were
+there in the design.
+
+To run them:
+
+    gradlew.bat test --console=plain        (Windows)
+    ./gradlew test --console=plain          (macOS, Linux)
+
+The HTML report lands in build/reports/tests/test/index.html.
+See HOW-TO-RUN.txt for everything else.

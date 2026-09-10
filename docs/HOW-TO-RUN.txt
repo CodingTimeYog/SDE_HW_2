@@ -1,0 +1,210 @@
+=======================================================================
+PRITHEE - HOW TO RUN
+Homework 2, SDE, University of Virginia
+=======================================================================
+
+Contents
+
+  1. What you need
+  2. Running the game
+  3. Playing
+  4. Running the tests
+  5. Generating the API documentation
+  6. Project layout
+  7. If something goes wrong
+
+
+=======================================================================
+1. WHAT YOU NEED
+=======================================================================
+
+  JDK 26
+      The Gradle build declares a Java 26 toolchain.  If Gradle cannot
+      find a JDK 26 on the machine it will try to download one; you can
+      also point it at an installation you already have by setting
+      org.gradle.java.installations.paths in gradle.properties.
+
+  Nothing else
+      The Gradle wrapper (gradlew and gradlew.bat) is committed to the
+      repository, so Gradle itself does not need to be installed.  The
+      wrapper downloads Gradle 9.6 the first time it runs, and Gradle
+      downloads JUnit.  Both need an internet connection on the first
+      build only.
+
+To check the Java version on the machine:
+
+    java -version
+
+
+=======================================================================
+2. RUNNING THE GAME
+=======================================================================
+
+From the project root (the folder holding build.gradle.kts):
+
+  Windows, in PowerShell or cmd:
+
+      .\gradlew.bat run --console=plain
+
+  macOS or Linux:
+
+      ./gradlew run --console=plain
+
+--console=plain stops Gradle from redrawing its progress bar over the
+sonnet.  The game reads from the keyboard, so run it in a real terminal
+rather than piping input into it.
+
+  From IntelliJ IDEA
+
+      Open the project and let the Gradle import finish.  Open
+      src/main/java/edu/virginia/cs/prithee/Main.java and click the
+      green arrow beside main().  IntelliJ's Run window accepts
+      keyboard input.
+
+  From the compiled classes
+
+      .\gradlew.bat build
+      java -cp build\classes\java\main edu.virginia.cs.prithee.Main
+
+
+=======================================================================
+3. PLAYING
+=======================================================================
+
+The sonnet prints and stops at a blank:
+
+    --- Round 1  (correct: 0, missed: 0) ---
+
+    Shall I compare thee to a summer's day?
+    Thou art more lovely and more temperate:
+    Rough winds do shake the darling buds of May,
+    And summer's lease hath all too short a ____
+
+    Prithee, what is the word? date
+
+    CORRECT - 'date' it is. The player carries on.
+
+  - Type the missing word and press Enter.  One underscore is printed
+    per letter of the missing word.
+
+  - Case, surrounding punctuation and stray spaces do not matter.
+    "Date", "date;" and "  date  " are all accepted for date.  A word
+    with an apostrophe, such as ow'st, is also accepted as owst.
+
+  - The program answers CORRECT, or ERROR followed by the word you
+    missed.  Then the sonnet restarts and stops at a different word.
+    A word is never hidden twice in the same game.
+
+  - Supply THREE words correctly to win, or miss THREE to lose.  A game
+    in which you keep alternating right and wrong answers runs past
+    three rounds; the fifth round settles it.
+
+  - A blank line is not counted against you.  The program just asks
+    again.
+
+  - Type quit at any prompt to leave.  Closing the input stream also
+    ends the game politely: Ctrl+Z then Enter on Windows, Ctrl+D on
+    macOS and Linux.
+
+When the game ends, the program prints the final tally and then the
+sonnet in full.
+
+
+=======================================================================
+4. RUNNING THE TESTS
+=======================================================================
+
+    .\gradlew.bat test --console=plain        (Windows)
+    ./gradlew test --console=plain            (macOS, Linux)
+
+There are 59 tests across six test classes.  The build prints each one
+as it passes, and writes an HTML report to:
+
+    build/reports/tests/test/index.html
+
+To compile the program and run the tests in one step:
+
+    .\gradlew.bat build
+
+DESIGN.txt, section 8, says what each test class covers and why the
+design made the tests possible.
+
+
+=======================================================================
+5. GENERATING THE API DOCUMENTATION
+=======================================================================
+
+Every class and every public method carries Javadoc.  To render it:
+
+    .\gradlew.bat javadoc
+
+The result lands in build/docs/javadoc/index.html.  It builds without
+warnings.
+
+
+=======================================================================
+6. PROJECT LAYOUT
+=======================================================================
+
+  Homework2/
+    build.gradle.kts        Gradle build, Kotlin DSL: Java 26, JUnit 6,
+                            the application plugin, UTF-8 encoding
+    settings.gradle.kts     project name
+    gradlew, gradlew.bat    Gradle wrapper - no local Gradle needed
+    gradle/wrapper/         the wrapper jar and its properties
+
+    docs/
+      README.txt            short overview, points at the other two
+      DESIGN.txt            the design: goals, UML for every class,
+                            responsibilities, how a round flows, the
+                            decisions behind it, testing strategy
+      HOW-TO-RUN.txt        this document
+
+    src/main/java/edu/virginia/cs/prithee/
+      Main.java                  entry point
+      ConsoleGame.java           console input and output
+      PritheeGame.java           the rules of the game
+      Sonnet.java                the poem, indexed word by word
+      Word.java                  one word and its place in the poem
+      WordSelector.java          interface: which word to hide next
+      RandomWordSelector.java    the random implementation
+      GuessEvaluator.java        is this guess right?
+      GameStatus.java            IN_PROGRESS, WON, LOST
+      Round.java                 a hidden word plus the text to print
+      GuessResult.java           the outcome of one guess
+
+    src/test/java/edu/virginia/cs/prithee/
+      WordTest.java
+      SonnetTest.java
+      GuessEvaluatorTest.java
+      PritheeGameTest.java
+      RandomWordSelectorTest.java
+      ConsoleGameTest.java
+      ScriptedWordSelector.java  test double: a known sequence of words
+
+
+=======================================================================
+7. IF SOMETHING GOES WRONG
+=======================================================================
+
+  "Could not find a Java installation matching languageVersion=26"
+
+      Gradle could not find or download a JDK 26.  Install one, then
+      either put it on JAVA_HOME or add a line like this to
+      gradle.properties in the project root:
+
+          org.gradle.java.installations.paths=C:/Path/To/jdk-26
+
+  The sonnet is scrambled by a progress bar
+
+      Add --console=plain to the gradlew command.
+
+  The game exits immediately without asking anything
+
+      Its input stream had nothing in it.  Run it in a terminal rather
+      than piping a file or another command into it.
+
+  The first build is slow
+
+      The wrapper is downloading Gradle, and Gradle is downloading
+      JUnit.  Later builds use the cache and take a few seconds.
