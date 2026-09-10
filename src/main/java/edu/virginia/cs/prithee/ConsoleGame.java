@@ -81,7 +81,9 @@ public class ConsoleGame {
             if (line.equalsIgnoreCase(QUIT_COMMAND)) {
                 return Optional.empty();
             }
-            if (!line.isEmpty()) {
+            // A line with no letters or digits ("", "   ", "?!.") names no word,
+            // so it is not scored; the player is simply asked again.
+            if (line.codePoints().anyMatch(Character::isLetterOrDigit)) {
                 return Optional.of(line);
             }
             output.print("Speak up, prithee. What is the word? ");
